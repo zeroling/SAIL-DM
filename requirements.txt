@@ -1,0 +1,8 @@
+# Install the CUDA-compatible torch and torchvision wheels first.
+numpy>=1.26,<3
+Pillow>=10
+PyYAML>=6
+scikit-learn>=1.4
+
+# Only required when a registered dataset contains DICOM files.
+pydicom>=2.4

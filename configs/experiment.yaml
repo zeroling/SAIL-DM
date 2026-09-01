@@ -1,0 +1,16 @@
+dataset_registry: datasets.yaml
+algorithm_config: condense.yaml
+
+project:
+  seed: 2026
+  deterministic: false
+  device: auto
+  output_root: outputs/final
+  num_workers: 2
+  windows_num_workers: 0
+  prefetch_factor: 2
+  pin_memory: true
+  persistent_workers: true
+  amp: true
+  amp_dtype: bf16
+  matmul_precision: high

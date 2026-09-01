@@ -1,0 +1,277 @@
+datasets:
+  bloodmnist:
+    adapter: medmnist_npz
+    root: data/BloodMNIST
+    medmnist:
+      file: bloodmnist.npz
+      url: https://zenodo.org/records/10519652/files/bloodmnist.npz?download=1
+      expected_counts: {train: 11959, val: 1712, test: 3421}
+    train_split: train
+    val_split: val
+    test_split: test
+    class_names:
+      - basophil
+      - eosinophil
+      - erythroblast
+      - immature granulocytes
+      - lymphocyte
+      - monocyte
+      - neutrophil
+      - platelet
+    default_ipcs: [1, 10, 50, 100]
+    online_evaluation_split: val
+    image:
+      size: [32, 32]
+      channels: 3
+      intensity_mode: auto
+      percentile_range: [0.5, 99.5]
+      normalization: {mean: [0.5, 0.5, 0.5], std: [0.5, 0.5, 0.5]}
+    augmentation: {enabled: false}
+    loader: {train_batch_size: 256, eval_batch_size: 512, drop_last: false}
+    condensation_overrides: &rgb_medmnist_protocol
+      online_evaluation: {select_best_by_accuracy: true}
+      memory:
+        real_feature_microbatch: 256
+        synthetic_feature_microbatch: 256
+        real_train_microbatch: 256
+        evaluation_batch: 128
+        inference_batch: 512
+      idm:
+        network_depth: 3
+        partition_expansion: 2
+        batch_real_by_ipc: {1: 256, 5: 256, 10: 256, 50: 512, 100: 1024}
+        batch_train: 256
+        net_num: 100
+        net_generate_interval_by_ipc: {1: 30, 5: 30, 10: 30, 50: 30, 100: 30}
+        ce_weight_by_ipc: {1: 0.5, 5: 0.5, 10: 0.5, 50: 0.1, 100: 0.1}
+        reliability_reset_interval_by_ipc:
+          {1: 100, 5: 100, 10: 100, 50: 500, 100: 500}
+
+  dermamnist:
+    adapter: medmnist_npz
+    root: data/DermaMNIST
+    medmnist:
+      file: dermamnist.npz
+      url: https://zenodo.org/records/10519652/files/dermamnist.npz?download=1
+      expected_counts: {train: 7007, val: 1003, test: 2005}
+    train_split: train
+    val_split: val
+    test_split: test
+    class_names:
+      - actinic keratoses and intraepithelial carcinoma
+      - basal cell carcinoma
+      - benign keratosis-like lesions
+      - dermatofibroma
+      - melanoma
+      - melanocytic nevi
+      - vascular lesions
+    default_ipcs: [1, 10, 50]
+    online_evaluation_split: val
+    image:
+      size: [32, 32]
+      channels: 3
+      intensity_mode: auto
+      percentile_range: [0.5, 99.5]
+      normalization: {mean: [0.5, 0.5, 0.5], std: [0.5, 0.5, 0.5]}
+    augmentation: {enabled: false}
+    loader: {train_batch_size: 256, eval_batch_size: 512, drop_last: false}
+    condensation_overrides: *rgb_medmnist_protocol
+
+  organamnist:
+    adapter: medmnist_npz
+    root: data/OrganAMNIST
+    medmnist:
+      file: organamnist.npz
+      url: https://zenodo.org/records/10519652/files/organamnist.npz?download=1
+      expected_counts: {train: 34561, val: 6491, test: 17778}
+    train_split: train
+    val_split: val
+    test_split: test
+    class_names:
+      - bladder
+      - femur-left
+      - femur-right
+      - heart
+      - kidney-left
+      - kidney-right
+      - liver
+      - lung-left
+      - lung-right
+      - pancreas
+      - spleen
+    default_ipcs: [1, 10, 50]
+    online_evaluation_split: val
+    image:
+      size: [32, 32]
+      channels: 1
+      intensity_mode: auto
+      percentile_range: [0.5, 99.5]
+      normalization: {mean: [0.5], std: [0.5]}
+    augmentation: {enabled: false}
+    loader: {train_batch_size: 256, eval_batch_size: 512, drop_last: false}
+    condensation_overrides:
+      online_evaluation: {select_best_by_accuracy: true}
+      memory:
+        real_feature_microbatch: 256
+        synthetic_feature_microbatch: 256
+        real_train_microbatch: 256
+        evaluation_batch: 128
+        inference_batch: 512
+      idm:
+        network_depth: 3
+        partition_expansion: 2
+        batch_real_by_ipc: {1: 256, 5: 256, 10: 256, 50: 512, 100: 1024}
+        batch_train: 256
+        net_num: 100
+        net_generate_interval_by_ipc: {1: 30, 5: 30, 10: 30, 50: 30, 100: 30}
+        ce_weight_by_ipc: {1: 0.5, 5: 0.5, 10: 0.5, 50: 0.1, 100: 0.1}
+        reliability_reset_interval_by_ipc:
+          {1: 100, 5: 100, 10: 100, 50: 500, 100: 500}
+
+  pathmnist:
+    adapter: medmnist_npz
+    root: data/PathMNIST
+    medmnist:
+      file: pathmnist.npz
+      url: https://zenodo.org/records/10519652/files/pathmnist.npz?download=1
+      expected_counts: {train: 89996, val: 10004, test: 7180}
+    train_split: train
+    val_split: val
+    test_split: test
+    class_names:
+      - adipose
+      - background
+      - debris
+      - lymphocytes
+      - mucus
+      - smooth muscle
+      - normal colon mucosa
+      - cancer-associated stroma
+      - colorectal adenocarcinoma epithelium
+    default_ipcs: [1, 5, 10, 100]
+    online_evaluation_split: val
+    image:
+      size: [32, 32]
+      channels: 3
+      intensity_mode: auto
+      percentile_range: [0.5, 99.5]
+      normalization:
+        mean: [0.741, 0.533, 0.706]
+        std: [0.402, 0.821, 0.407]
+    augmentation: {enabled: false}
+    loader: {train_batch_size: 256, eval_batch_size: 512, drop_last: false}
+    condensation_overrides:
+      online_evaluation:
+        select_best_by_accuracy: true
+        # Preserve the original 1,000-epoch classifier protocol so IPC=1000
+        # is directly comparable with the earlier 88% evaluation.
+        epochs_by_ipc: {1000: 1000}
+      memory:
+        real_feature_microbatch: 256
+        # Bound activation memory independently of the number of stored images.
+        synthetic_feature_microbatch: 1024
+        real_train_microbatch: 256
+        evaluation_batch: 128
+        inference_batch: 512
+      idm:
+        network_depth: 3
+        partition_expansion: 2
+        batch_real_by_ipc: {1: 256, 5: 256, 10: 256, 50: 512, 100: 1024, 1000: 1024}
+        batch_train: 256
+        net_num: 100
+        # P&E remains part of the published low-IPC protocol. At IPC=1000,
+        # preserve full 32x32 histology texture instead of upsampling 16x16
+        # quadrants; the stored and effective sample counts are both 1,000.
+        partition_expansion_by_ipc: {1: 2, 5: 2, 10: 2, 50: 2, 100: 2, 1000: 1}
+        # Use a conservative fixed pixel step for all 20,000 unpartitioned
+        # IPC=1000 iterations; no hidden warmup or decay is applied.
+        image_learning_rate_by_ipc: {1: 0.2, 5: 0.2, 10: 0.2, 50: 0.2, 100: 0.2, 1000: 0.02}
+        net_generate_interval_by_ipc: {1: 5, 5: 30, 10: 30, 50: 30, 100: 30, 1000: 30}
+        ce_weight_by_ipc: {1: 0.5, 5: 0.5, 10: 0.5, 50: 0.1, 100: 0.1, 1000: 0.1}
+        reliability_reset_interval_by_ipc:
+          {1: 100, 5: 100, 10: 100, 50: 500, 100: 500, 1000: 500}
+      evaluation:
+        # Use the same full evaluation budget as the earlier IPC=1000 result.
+        epochs_by_ipc: {1000: 1000}
+
+  # Official MedMNIST+ PathMNIST at native 224x224. This is deliberately a
+  # separate dataset key so it cannot reuse or overwrite the 32x32 results.
+  pathmnist224:
+    adapter: medmnist_npz
+    root: data/PathMNIST224
+    medmnist:
+      file: pathmnist_224.npz
+      url: https://zenodo.org/records/10519652/files/pathmnist_224.npz?download=1
+      md5: 2c51a510bcdc9cf8ddb2af93af1eadec
+      expected_counts: {train: 89996, val: 10004, test: 7180}
+    train_split: train
+    val_split: val
+    test_split: test
+    class_names:
+      - adipose
+      - background
+      - debris
+      - lymphocytes
+      - mucus
+      - smooth muscle
+      - normal colon mucosa
+      - cancer-associated stroma
+      - colorectal adenocarcinoma epithelium
+    # IPC=1/100 align with the published diffusion rows; IPC=10 exposes the
+    # low-budget trend without making the full run matrix unnecessarily large.
+    default_ipcs: [1, 10, 100]
+    online_evaluation_split: val
+    image:
+      size: [224, 224]
+      channels: 3
+      intensity_mode: auto
+      percentile_range: [0.5, 99.5]
+      normalization:
+        mean: [0.741, 0.533, 0.706]
+        std: [0.402, 0.821, 0.407]
+    augmentation: {enabled: false}
+    loader: {train_batch_size: 32, eval_batch_size: 64, drop_last: false}
+    condensation_overrides:
+      online_evaluation:
+        select_best_by_accuracy: true
+        # The global 512-image validation batch exceeds 16 GB at 224x224.
+        # Inference batching does not change checkpoint-selection semantics.
+        evaluation_batch_size: 16
+        # Keep the original logical batch/SGD updates; split only activations.
+        # The online ConvNet has GroupNorm, so chunks do not change batch stats.
+        batch_size: 128
+        train_microbatch: 8
+        log_interval_epochs: 100
+      memory:
+        # The 12.6 GB NPZ already retains uint8 images in host memory. Do not
+        # build a second float16 cache of the 224x224 training set.
+        cache_real_images: false
+        real_feature_microbatch: 8
+        # Preserve all four P&E views and the exact full-batch objective, but
+        # recompute IDM activations eight images at a time on a 16 GB GPU.
+        synthetic_feature_microbatch: 8
+        real_train_microbatch: 16
+        evaluation_batch: 16
+        inference_batch: 32
+      idm:
+        # Five pooling blocks give a 7x7 final map at 224x224 while preserving
+        # the original official IDM width=128 convention.
+        network_depth: 5
+        batch_real_by_ipc: {1: 64, 10: 64, 100: 128}
+        batch_train: 32
+        net_num: 100
+        partition_expansion_by_ipc: {1: 2, 10: 2, 100: 2}
+        image_learning_rate_by_ipc: {1: 0.2, 10: 0.2, 100: 0.2}
+        net_generate_interval_by_ipc: {1: 30, 10: 30, 100: 30}
+        ce_weight_by_ipc: {1: 0.5, 10: 0.5, 100: 0.1}
+        reliability_reset_interval_by_ipc: {1: 100, 10: 100, 100: 500}
+      cluster_matching:
+        # Same original algorithm: RGB pixel descriptor -> randomized PCA ->
+        # class-wise K-means. Only descriptor capacity scales with resolution.
+        descriptor_size: [32, 32]
+        pca_components: 128
+        descriptor_batch_size: 32
+      evaluation:
+        architectures: [convnet, resnet18]
+        architectures_by_ipc:
+          10: [convnet, resnet18]

@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# Environments and editors
+.venv/
+venv/
+env/
+.idea/
+.vscode/
+
+# Data, pretrained weights, and experiment artifacts
+data/
+pretrained/
+outputs/
+runs/
+*.npz
+*.npy
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.download
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,128 @@
+condensation:
+  experiment_name: adaptive_cluster_idm
+
+  memory:
+    max_reserved_fraction: 0.90
+    real_feature_microbatch: 256
+    synthetic_feature_microbatch: 256
+    real_train_microbatch: 256
+    evaluation_batch: 128
+    inference_batch: 512
+    retry_minimum: 1
+
+  idm:
+    ipc: 1
+    iterations: 20000
+    network_depth: 3
+    image_learning_rate: 0.2
+    image_momentum: 0.5
+    ce_weight_by_ipc: {1: 0.5, 5: 0.5, 10: 0.5, 50: 0.1, 100: 0.1}
+    train_net_num: 1
+    fetch_net_num: 2
+    model_train_steps: 10
+    net_num: 100
+    net_generate_interval: 30
+    batch_real: 256
+    batch_real_by_ipc: {1: 256, 5: 256, 10: 256, 50: 512, 100: 1024}
+    batch_train: 256
+    reliability_reset_interval_by_ipc:
+      {1: 100, 5: 100, 10: 100, 50: 500, 100: 500}
+    lr_net: 0.01
+    net_momentum: 0.9
+    net_weight_decay: 0.0005
+    dsa_strategy: color_crop_cutout_flip_scale_rotate
+    partition_expansion: 2
+    minimum_reliability: 0.0
+    checkpoint_interval_iterations: 100
+    # Legacy key retained as the validation cadence. No periodic snapshot file
+    # is written; synthetic.pt is overwritten only when validation improves.
+    synthetic_snapshot_interval_iterations: 1000
+    preview_interval_iterations: 0
+    log_interval_iterations: 50
+
+  pixel_constraints:
+    enabled: false
+    domain: normalized
+    clear_outward_momentum: true
+
+  cluster_matching:
+    # Idea 1: pixel-PCA K-means and four centre-to-edge initialization points.
+    initialization_enabled: true
+    # Idea 2: size-weighted coarse-cluster feature-mean matching.
+    matching_enabled: true
+    # Per-class train-only adaptive K. One cluster represents about 100 real
+    # training images; half-up rounding is used, then K is clamped to [1, IPC]
+    # and max_clusters_per_class. Every class still owns exactly IPC canvases.
+    cluster_count_mode: class_support_round
+    images_per_cluster: 100
+    max_clusters_per_class: 10
+    # Retained only for explicit cluster_count_mode=fixed ablations.
+    layout_by_ipc:
+      1: {clusters: 1}
+      5: {clusters: 5}
+      10: {clusters: 10}
+      50: {clusters: 10}
+      100: {clusters: 10}
+    descriptor_size: [16, 16]
+    # pixel_pca is the CACDM protocol. The other backends are optional
+    # representation-space ablations and use isolated cache metadata.
+    descriptor_mode: pixel_pca
+    descriptor_batch_size: 128
+    pca_components: 64
+    kmeans_n_init: 10
+    cache_root: outputs/cluster_cache
+    center_loss_weight: 1.0
+
+  representative_sampling:
+    # DREAM-DM adaptation: cluster the current guidance network embeddings and
+    # match representative real samples while retaining IDM's objective.
+    enabled: false
+    # 20k IDM iterations use 100, preserving 200 refreshes (the same order as
+    # a 2k-iteration DREAM run with interval 10) while keeping E3 feasible.
+    refresh_interval_iterations: 100
+    maximum_candidates_per_class: 8192
+    maximum_clusters_per_class: 256
+    kmeans_n_init: 1
+
+  cluster_spread:
+    # Idea 3: radial quantiles plus diagonal standard deviation per coarse cluster.
+    enabled: true
+    radial_weight: 1.0
+    standard_deviation_weight: 1.0
+    smooth_l1_beta: 0.05
+    target_gradient_fraction: 0.15
+    # full=conflict projection + norm budget; projection=projection only;
+    # naive=directly add the auxiliary gradient.
+    mixer_mode: full
+    minimum_relative_gradient_norm: 0.000001
+    epsilon: 0.000000000001
+    history_size: 256
+
+  online_evaluation:
+    interval_iterations: 1000
+    select_best_by_accuracy: true
+    epochs: 1000
+    include_epoch_zero_update: true
+    batch_size: 128
+    evaluation_batch_size: 512
+    learning_rate: 0.01
+    momentum: 0.9
+    weight_decay: 0.0005
+
+  evaluation:
+    model_selection: best-val
+    architectures: [convnet]
+    architectures_by_ipc:
+      10: [convnet, resnet18, vgg11, alexnet]
+    repeats: 5
+    epochs: 1000
+    include_epoch_zero_update: true
+    batch_size: 128
+    checkpoint_interval_epochs: 100
+    log_interval_epochs: 10
+    model_selection_interval_epochs: 10
+    optimizer: sgd
+    learning_rate: 0.01
+    momentum: 0.9
+    weight_decay: 0.0005
+    schedule: official_step
