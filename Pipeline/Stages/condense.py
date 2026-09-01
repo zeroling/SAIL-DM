@@ -1340,7 +1340,7 @@ class AuxiliaryGradientMixer:
         base_gradient: torch.Tensor,
         auxiliary_gradient: torch.Tensor,
     ) -> tuple[torch.Tensor, float | torch.Tensor]:
-        """Mix the auxiliary gradient according to the selected ablation mode."""
+        """Combine the auxiliary spread gradient with the main gradient."""
 
         base = base_gradient.float()
         auxiliary = auxiliary_gradient.float()
@@ -2090,7 +2090,7 @@ def run_condensation(
         checkpoint_design = dict(payload.get("design_signature", {}))
         if checkpoint_design != design_signature:
             raise ValueError(
-                "Checkpoint design does not match the requested ablation: "
+                "Checkpoint design does not match the current CACDM protocol: "
                 f"checkpoint={checkpoint_design}, current={design_signature}"
             )
         checkpoint_pixel_constraints = payload.get("pixel_constraints")

@@ -1,8 +1,8 @@
-"""Unified runner for the original three cluster-IDM innovations.
+"""Unified runner for the complete CACDM method.
 
-Idea 1: pixel-PCA class-wise K-means and centre-to-edge P&E initialization.
-Idea 2: cluster-size-weighted feature-mean matching.
-Idea 3: cluster radial-quantile and diagonal-standard-deviation matching.
+The public entry point always enables adaptive pixel-PCA clustering with
+centre-to-edge P&E initialization, cluster-size-weighted feature-mean
+matching, and controlled radial/diagonal-spread matching.
 """
 
 from __future__ import annotations
@@ -113,26 +113,6 @@ def _nonnegative_seeds(values: list[int]) -> list[int]:
     if not result:
         raise ValueError("At least one condensation seed is required")
     return result
-
-
-def _parse_ideas(
-    parser: argparse.ArgumentParser, raw_ideas: list[str] | None
-) -> set[int]:
-    """Parse ideas and enforce the historical cumulative design."""
-
-    if not raw_ideas:
-        return set()
-    enabled: set[int] = set()
-    for raw in raw_ideas:
-        token = str(raw).strip().lower().removeprefix("idea")
-        if token not in {"1", "2", "3"}:
-            parser.error(f"Unknown idea {raw!r}; supported values are 1, 2, 3")
-        enabled.add(int(token))
-    if 2 in enabled and 1 not in enabled:
-        parser.error("Idea 2 requires idea 1")
-    if 3 in enabled and 2 not in enabled:
-        parser.error("Idea 3 requires ideas 1 and 2")
-    return enabled
 
 
 def _load_snapshot(path: str | Path) -> dict[str, Any]:
@@ -679,7 +659,7 @@ def _preflight_device(allow_cpu: bool) -> None:
 def main(argv: list[str] | None = None) -> int:
     _CANCEL_EVENT.clear()
     parser = argparse.ArgumentParser(
-        description="Size-weighted cluster IDM 统一实验入口"
+        description="CACDM 完整方法统一实验入口"
     )
     parser.add_argument(
         "--resume-all",
@@ -710,15 +690,6 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         metavar="N",
         help="覆盖数据集的默认 IPC 列表",
-    )
-    parser.add_argument(
-        "--idea",
-        nargs="+",
-        metavar="IDEA",
-        help=(
-            "Innovation switches: 1=initialization, 2=cluster mean, "
-            "3=second-order spread; use cumulative combinations"
-        ),
     )
     parser.add_argument(
         "--seed",
@@ -838,60 +809,6 @@ def main(argv: list[str] | None = None) -> int:
         help="评估架构覆盖（默认四个架构全跑）",
     )
     parser.add_argument(
-        "--ce-weight",
-        type=float,
-        help="覆盖所有选中 IPC 的 CE 系数",
-    )
-    parser.add_argument(
-        "--mean-weight",
-        type=float,
-        help="Cluster-mean loss coefficient used when idea 2 is enabled",
-    )
-    parser.add_argument(
-        "--descriptor-size",
-        nargs=2,
-        type=int,
-        metavar=("HEIGHT", "WIDTH"),
-        help=(
-            "覆盖像素聚类描述符尺寸；默认 16 16。"
-            "建议只用 24 24 做定向消融，不要直接替换已验证结果"
-        ),
-    )
-    parser.add_argument(
-        "--cluster-descriptor",
-        choices=("pixel_pca", "resnet18", "dinov2"),
-        default="pixel_pca",
-        help="Clustering-descriptor ablation; CACDM uses pixel_pca",
-    )
-    parser.add_argument(
-        "--max-clusters",
-        type=int,
-        help="Ablation override for the maximum clusters per class",
-    )
-    parser.add_argument(
-        "--representative-sampling",
-        action="store_true",
-        help="Enable DREAM-style current-network representative sampling",
-    )
-    parser.add_argument(
-        "--representative-interval",
-        type=int,
-        default=10,
-        help="DREAM representative refresh interval in condensation iterations",
-    )
-    parser.add_argument(
-        "--spread-mixer-mode",
-        choices=("naive", "projection", "full"),
-        default="full",
-        help="Auxiliary-gradient mixer ablation",
-    )
-    parser.add_argument(
-        "--spread-gradient-fraction",
-        type=float,
-        default=0.15,
-        help="Auxiliary-gradient norm budget used by the full mixer",
-    )
-    parser.add_argument(
         "--disable-online-evaluation",
         action="store_true",
         help=(
@@ -970,9 +887,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.resume_all and args.resume_remaining:
         parser.error("--resume-all 与 --resume-remaining 不能同时使用")
     if args.resume_all or args.resume_remaining:
-        if args.datasets is not None or args.ipc is not None or args.idea is not None:
+        if args.datasets is not None or args.ipc is not None:
             parser.error(
-                "一键续跑模式已固定 datasets/ipc/idea，不要再传这些参数"
+                "一键续跑模式已固定 datasets/ipc，不要再传这些参数"
             )
         if args.seeds is not None:
             parser.error("一键续跑模式已固定各数据集种子，不要再传 --seed")
@@ -983,7 +900,6 @@ def main(argv: list[str] | None = None) -> int:
             if args.resume_all
             else ["organamnist", "bloodmnist", "pathmnist", "dermamnist"]
         )
-        args.idea = ["1", "2", "3"]
         args.seeds = [1, 2, 43]
         if args.iterations is None:
             args.iterations = 20000
@@ -1033,15 +949,6 @@ def main(argv: list[str] | None = None) -> int:
     _CHILD_CPU_THREADS = int(args.cpu_threads_per_job)
     _CHILD_LOADER_WORKERS = int(args.loader_workers_per_job)
 
-    ideas = _parse_ideas(parser, args.idea)
-    idea1 = 1 in ideas
-    idea2 = 2 in ideas
-    idea3 = 3 in ideas
-    is_baseline = not ideas
-    if args.mean_weight is not None and not idea2:
-        parser.error("--mean-weight requires --idea 1 2")
-    if args.mean_weight is not None and float(args.mean_weight) <= 0.0:
-        parser.error("--mean-weight must be positive")
     config_path = PROJECT_ROOT / "configs" / "experiment.yaml"
     available = list_datasets(config_path)
     datasets: list[str] = []
@@ -1055,21 +962,10 @@ def main(argv: list[str] | None = None) -> int:
         if key not in datasets:
             datasets.append(key)
 
-    idea_label = (
-        "DREAM-DM representative sampling aligned to IDM"
-        if is_baseline and args.representative_sampling
-        else "strict IDM baseline"
-        if is_baseline
-        else "+".join(
-            {
-                1: "idea 1 (centre-to-edge initialization)",
-                2: "idea 2 (size-weighted cluster mean)",
-                3: "idea 3 (second-order cluster spread)",
-            }[idea]
-            for idea in sorted(ideas)
-        )
+    print(
+        "CACDM 完整协议：自适应聚类初始化 + "
+        "簇规模加权均值匹配 + 受控簇内离散度匹配"
     )
-    print(f"创新点配置：{idea_label}")
     print(f"配置：{config_path}　入口：Pipeline.Stages.condense")
     print(f"数据集（共享全局任务队列）：{', '.join(datasets)}")
 
@@ -1083,15 +979,9 @@ def main(argv: list[str] | None = None) -> int:
             overrides.setdefault("project", {})["output_root"] = str(
                 args.output_root
             )
-        elif not is_baseline:
-            method_name = "idea_" + "".join(map(str, sorted(ideas)))
+        else:
             overrides.setdefault("project", {})["output_root"] = str(
-                Path("outputs") / method_name
-            )
-        elif is_baseline:
-            # 基线与完整方法必须写入不同目录，避免断点互相覆盖。
-            overrides.setdefault("project", {})["output_root"] = str(
-                Path("outputs") / "baseline"
+                Path("outputs") / "cacdm"
             )
         if args.iterations is not None:
             overrides.setdefault("condensation", {}).setdefault(
@@ -1110,9 +1000,8 @@ def main(argv: list[str] | None = None) -> int:
                 }
             )
         else:
-            # Every in-house baseline is aligned to the CACDM evaluation
-            # protocol: validate every 1,000 condensation iterations and keep
-            # the best validation snapshot. The test set is never consulted.
+            # Validate every 1,000 condensation iterations and keep the best
+            # validation snapshot. The test set is never consulted.
             condensation_override.setdefault("online_evaluation", {})[
                 "select_best_by_accuracy"
             ] = True
@@ -1121,80 +1010,25 @@ def main(argv: list[str] | None = None) -> int:
         )
         cluster_override.update(
             {
-                "initialization_enabled": bool(idea1),
-                "matching_enabled": bool(idea2),
+                "initialization_enabled": True,
+                "matching_enabled": True,
+                "descriptor_mode": "pixel_pca",
             }
         )
-        cluster_override["descriptor_mode"] = str(args.cluster_descriptor)
-        if args.max_clusters is not None:
-            if int(args.max_clusters) <= 0:
-                parser.error("--max-clusters must be positive")
-            cluster_override["max_clusters_per_class"] = int(
-                args.max_clusters
-            )
-            cluster_override["cluster_count_mode"] = "fixed"
-            cluster_override["layout_by_ipc"] = {
-                int(ipc_value): {
-                    "clusters": min(int(ipc_value), int(args.max_clusters))
-                }
-                for ipc_value in (1, 5, 10, 50, 100)
-            }
         condensation_override.setdefault(
             "representative_sampling", {}
-        ).update(
-            {
-                "enabled": bool(args.representative_sampling),
-                "refresh_interval_iterations": int(
-                    args.representative_interval
-                ),
-            }
-        )
-        condensation_override.setdefault("cluster_spread", {})[
-            "enabled"
-        ] = bool(idea3)
-        if args.representative_interval <= 0:
-            parser.error("--representative-interval must be positive")
-        if not 0.0 < float(args.spread_gradient_fraction) < 1.0:
-            parser.error("--spread-gradient-fraction must be in (0,1)")
+        )["enabled"] = False
         condensation_override.setdefault("cluster_spread", {}).update(
             {
-                "mixer_mode": str(args.spread_mixer_mode),
-                "target_gradient_fraction": float(
-                    args.spread_gradient_fraction
-                ),
+                "enabled": True,
+                "mixer_mode": "full",
+                "target_gradient_fraction": 0.15,
             }
         )
-        if idea2:
-            cluster_override["center_loss_weight"] = float(
-                args.mean_weight if args.mean_weight is not None else 1.0
-            )
-        if args.descriptor_size is not None:
-            if min(args.descriptor_size) <= 0:
-                raise ValueError("--descriptor-size must contain positive integers")
-            cluster_override["descriptor_size"] = [
-                int(value) for value in args.descriptor_size
-            ]
-        if is_baseline:
-            condensation_override["experiment_name"] = (
-                "dream_dm_representative"
-                if args.representative_sampling
-                else "original_idm_baseline"
-            )
-        else:
-            condensation_override["experiment_name"] = (
-                "cacdm_idea_"
-                + "".join(map(str, sorted(ideas)))
-            )
+        condensation_override["experiment_name"] = "cacdm"
 
         if args.smoke:
-            condensation_override["experiment_name"] = (
-                condensation_override.get("experiment_name")
-                or (
-                    "smoke_method"
-                    if idea1
-                    else "smoke_baseline"
-                )
-            )
+            condensation_override["experiment_name"] = "cacdm_smoke"
 
         config = load_config(
             config_path, dataset=dataset, overrides=overrides
@@ -1218,12 +1052,6 @@ def main(argv: list[str] | None = None) -> int:
             ipcs = [ipcs[0]]
         if any(int(ipc) > 1000 for ipc in ipcs):
             raise ValueError("最终实验范围只支持 IPC<=1000")
-        if args.ce_weight is not None:
-            if float(args.ce_weight) < 0.0:
-                raise ValueError("--ce-weight cannot be negative")
-            config["condensation"]["idm"]["ce_weight_by_ipc"] = {
-                int(ipc): float(args.ce_weight) for ipc in ipcs
-            }
         repeats = int(
             args.repeats
             if args.repeats is not None
@@ -1263,7 +1091,7 @@ def main(argv: list[str] | None = None) -> int:
                 config["project"]["output_root"] = str(
                     Path("outputs")
                     / "smoke"
-                    / ("method" if idea1 else "baseline")
+                    / "cacdm"
                 )
             config["condensation"]["idm"].update(
                 {
@@ -1322,7 +1150,6 @@ def main(argv: list[str] | None = None) -> int:
                 f"evaluation_repeat={args.evaluation_repeat} "
                 f"evaluation_interval={args.evaluation_interval} "
                 f"evaluation_model_selection={args.evaluation_model_selection} "
-                f"mean_weight={config['condensation']['cluster_matching']['center_loss_weight']} "
                 f"online_evaluation_interval="
                 f"{config['condensation']['online_evaluation']['interval_iterations']} "
                 f"output={output_root(config)}"

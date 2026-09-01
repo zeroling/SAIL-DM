@@ -1,9 +1,8 @@
-"""Cluster innovations layered on strict IDM.
+"""Clustering and diversity-preservation components used by CACDM.
 
-The CACDM path uses resized raw pixels, PCA, and class-wise K-means.
-An ablation may explicitly switch the descriptor to ResNet-18 or DINOv2;
-the mode is embedded in cache metadata so variants can never reuse each
-other's cluster assignments.
+The public CACDM path uses resized raw pixels, PCA, and class-wise K-means.
+Descriptor identity is embedded in cache metadata so incompatible cluster
+assignments can never be reused.
 """
 
 from __future__ import annotations
@@ -42,7 +41,7 @@ PRETRAINED_SHA256 = {
 
 
 def _verified_pretrained_path(path: Path) -> Path:
-    """Require packaged ablation weights; default CACDM needs no weights."""
+    """Require a checksum-matched offline descriptor weight."""
 
     if not path.is_file():
         raise FileNotFoundError(
@@ -274,13 +273,13 @@ def _descriptor_encoder(mode: str, device: torch.device):
             import timm
         except ImportError as error:
             raise RuntimeError(
-                "The DINOv2 descriptor ablation requires timm"
+                "The DINOv2 descriptor backend requires timm"
             ) from error
         try:
             from safetensors.torch import load_file
         except ImportError as error:
             raise RuntimeError(
-                "The DINOv2 descriptor ablation requires safetensors"
+                "The DINOv2 descriptor backend requires safetensors"
             ) from error
         weight_path = _verified_pretrained_path(DINOV2_WEIGHT)
         model = timm.create_model(
@@ -779,7 +778,7 @@ def cluster_distribution_losses(
             "synthetic_groups must contain one id per synthetic feature"
         )
 
-    # Idea 2 原实现逐簇做布尔索引和 mean，每个类别/指导网络都会启动
+    # 早期实现逐簇做布尔索引和 mean，每个类别/指导网络都会启动
     # 2*K 个小 GPU kernel。index_add 一次聚合全部簇，目标函数和梯度不变。
     real_counts = torch.bincount(
         real_group_ids, minlength=int(cluster_count)
@@ -811,11 +810,11 @@ def cluster_distribution_losses(
         (synthetic_means - real_means).square().sum(dim=1) * weights
     ).sum()
 
-    # Idea 1+2 到这里直接返回，不再进入任何逐簇 Python 循环。
+    # 不计算离散度项时到这里直接返回，不再进入任何逐簇 Python 循环。
     if not compute_spread:
         return mean_loss, spread_loss
 
-    # Idea 3 先一次性计算全部样本相对各自簇中心的半径。原实现每簇对
+    # 先一次性计算全部样本相对各自簇中心的半径。早期实现每簇对
     # [N,D] 特征做两次布尔切片；现在循环里只处理很小的 1-D 半径。
     dimension_scale = math.sqrt(float(real.shape[1]))
     if float(radial_weight) > 0.0:

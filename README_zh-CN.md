@@ -8,7 +8,7 @@ CACDM 是 **Cluster-Aware Class-Distribution Matching（聚簇感知类分布匹
 
 ## 方法概述
 
-CACDM 的三个创新点按累积方式启用：
+CACDM 由三个同时启用的互补创新点组成：
 
 1. **类内自适应聚簇初始化。** 先对每个类的图像缩放、展平并用 PCA 降维，然后做类内 K-means。每类聚簇数为：
 
@@ -22,14 +22,8 @@ CACDM 的三个创新点按累积方式启用：
 
 3. **受控簇内离散度匹配。** 用径向特征分位数和逐维特征标准差保留类内多样性。当辅助离散度梯度与 IDM 主梯度冲突时，先投影去除冲突分量，再将其范数限制为主梯度范数的 15%。
 
-开关关系如下：
-
-```text
-IDM 基线             : 不传 --idea
-CACDM-I1             : --idea 1
-CACDM-I1+I2          : --idea 1 2
-完整 CACDM            : --idea 1 2 3
-```
+公开入口始终运行完整 CACDM。自适应聚类初始化、按簇规模加权的均值匹配和
+受控簇内离散度匹配会同时启用，命令行不提供关闭单个创新点的开关。
 
 ## 支持的设置
 
@@ -88,7 +82,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-默认 `pixel_pca` CACDM 协议不需要预训练网络。可选的 ResNet-18/DINOv2 聚簇表示消融需要在 `pretrained/` 中单独放置通过校验的权重；仓库不包含这些权重。
+公开 CACDM 协议固定使用 `pixel_pca` 聚类表示，不需要预训练网络。
 
 ## 数据准备
 
@@ -130,7 +124,7 @@ python tests/smoke_pathmnist224.py
 只查看任务计划，不启动实验：
 
 ```bash
-python run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --stage all --jobs 1 --dry-run
+python run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage all --jobs 1 --dry-run
 ```
 
 ## 运行 CACDM
@@ -138,25 +132,25 @@ python run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --s
 运行一个 32x32 完整方法实验：
 
 ```bash
-python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --stage all --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage all --jobs 1 --eval-reports-per-job 1
 ```
 
 运行论文协议的 3 个蒸馏种子和每个合成集 5 次分类器评测：
 
 ```bash
-python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 2 43 --idea 1 2 3 --stage all --repeats 5 --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 2 43 --stage all --repeats 5 --jobs 1 --eval-reports-per-job 1
 ```
 
 把多个 32x32 数据集加入同一任务队列：
 
 ```bash
-python -u run_experiment.py --dataset pathmnist bloodmnist dermamnist organamnist --ipc 10 --seed 1 2 43 --idea 1 2 3 --stage all --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset pathmnist bloodmnist dermamnist organamnist --ipc 10 --seed 1 2 43 --stage all --jobs 1 --eval-reports-per-job 1
 ```
 
 在 16 GB 显卡上运行 224x224 PathMNIST+：
 
 ```bash
-python -u run_experiment.py --dataset pathmnist224 --ipc 1 10 100 --seed 1 --idea 1 2 3 --stage all --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset pathmnist224 --ipc 1 10 100 --seed 1 --stage all --jobs 1 --eval-reports-per-job 1
 ```
 
 224x224 配置保留全部 4 个 P&E 视图和完整 loss。激活微批处理只改变显存占用，不改变数学目标。16 GB 显卡请使用单 job。
@@ -164,8 +158,8 @@ python -u run_experiment.py --dataset pathmnist224 --ipc 1 10 100 --seed 1 --ide
 分开执行蒸馏与评测：
 
 ```bash
-python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --stage condense --jobs 1
-python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --stage evaluate --evaluation-architectures convnet --repeats 5 --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage condense --jobs 1
+python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage evaluate --evaluation-architectures convnet --repeats 5 --jobs 1 --eval-reports-per-job 1
 ```
 
 对同一条命令重新执行时，程序会续跑兼容的检查点，并跳过已完成且配置一致的结果。
@@ -184,7 +178,7 @@ python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 
 所有运行产物写入 `outputs/`，并被 Git 忽略。完整方法的典型目录为：
 
 ```text
-outputs/idea_123/<dataset>/ipc_<IPC>/condense_seed_<seed>/
+outputs/cacdm/<dataset>/ipc_<IPC>/condense_seed_<seed>/
 |-- synthetic.pt
 |-- summary.json
 |-- online_evaluation.json

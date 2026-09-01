@@ -1,5 +1,5 @@
 condensation:
-  experiment_name: adaptive_cluster_idm
+  experiment_name: cacdm
 
   memory:
     max_reserved_fraction: 0.90
@@ -46,9 +46,9 @@ condensation:
     clear_outward_momentum: true
 
   cluster_matching:
-    # Idea 1: pixel-PCA K-means and four centre-to-edge initialization points.
+    # Adaptive pixel-PCA K-means and four centre-to-edge initialization points.
     initialization_enabled: true
-    # Idea 2: size-weighted coarse-cluster feature-mean matching.
+    # Size-weighted coarse-cluster feature-mean matching.
     matching_enabled: true
     # Per-class train-only adaptive K. One cluster represents about 100 real
     # training images; half-up rounding is used, then K is clamped to [1, IPC]
@@ -56,7 +56,7 @@ condensation:
     cluster_count_mode: class_support_round
     images_per_cluster: 100
     max_clusters_per_class: 10
-    # Retained only for explicit cluster_count_mode=fixed ablations.
+    # Legacy fixed layouts retained for checkpoint/schema compatibility.
     layout_by_ipc:
       1: {clusters: 1}
       5: {clusters: 5}
@@ -64,8 +64,7 @@ condensation:
       50: {clusters: 10}
       100: {clusters: 10}
     descriptor_size: [16, 16]
-    # pixel_pca is the CACDM protocol. The other backends are optional
-    # representation-space ablations and use isolated cache metadata.
+    # The public CACDM runner locks the descriptor to pixel_pca.
     descriptor_mode: pixel_pca
     descriptor_batch_size: 128
     pca_components: 64
@@ -85,7 +84,7 @@ condensation:
     kmeans_n_init: 1
 
   cluster_spread:
-    # Idea 3: radial quantiles plus diagonal standard deviation per coarse cluster.
+    # Radial quantiles plus diagonal standard deviation per coarse cluster.
     enabled: true
     radial_weight: 1.0
     standard_deviation_weight: 1.0

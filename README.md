@@ -8,7 +8,7 @@ This repository contains source code and configurations only. Datasets, syntheti
 
 ## Method overview
 
-CACDM introduces three cumulative components:
+CACDM combines three complementary components:
 
 1. **Adaptive class-wise cluster initialization.** Images from each class are resized, flattened, reduced with PCA, and partitioned by class-wise K-means. The number of clusters is
 
@@ -22,14 +22,10 @@ CACDM introduces three cumulative components:
 
 3. **Controlled within-cluster spread matching.** Radial feature quantiles and diagonal feature standard deviations preserve intra-class diversity. If the auxiliary spread gradient conflicts with the main IDM gradient, its conflicting component is projected away and its norm is capped at 15% of the main-gradient norm.
 
-The components are enabled cumulatively:
-
-```text
-IDM                  : omit --idea
-CACDM-I1             : --idea 1
-CACDM-I1+I2          : --idea 1 2
-Full CACDM            : --idea 1 2 3
-```
+The public runner always executes the complete CACDM method. Adaptive cluster
+initialization, cluster-size-weighted mean matching, and controlled
+within-cluster spread matching are enabled together; no contribution switch is
+exposed on the command line.
 
 ## Supported settings
 
@@ -88,7 +84,8 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-The default `pixel_pca` CACDM protocol requires no pretrained network. The optional ResNet-18/DINOv2 clustering-descriptor ablations require separately supplied, checksum-matched weights under `pretrained/`; those weights are not included.
+The public CACDM protocol is fixed to the `pixel_pca` clustering descriptor and
+requires no pretrained network.
 
 ## Data preparation
 
@@ -130,7 +127,7 @@ python tests/smoke_pathmnist224.py
 Preview a run plan without starting an experiment:
 
 ```bash
-python run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --stage all --jobs 1 --dry-run
+python run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage all --jobs 1 --dry-run
 ```
 
 ## Running CACDM
@@ -138,25 +135,25 @@ python run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --s
 Run the complete method on one 32x32 setting:
 
 ```bash
-python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --stage all --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage all --jobs 1 --eval-reports-per-job 1
 ```
 
 Run the paper-style three condensation seeds and five classifier repetitions:
 
 ```bash
-python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 2 43 --idea 1 2 3 --stage all --repeats 5 --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 2 43 --stage all --repeats 5 --jobs 1 --eval-reports-per-job 1
 ```
 
 Run multiple 32x32 datasets through the shared queue:
 
 ```bash
-python -u run_experiment.py --dataset pathmnist bloodmnist dermamnist organamnist --ipc 10 --seed 1 2 43 --idea 1 2 3 --stage all --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset pathmnist bloodmnist dermamnist organamnist --ipc 10 --seed 1 2 43 --stage all --jobs 1 --eval-reports-per-job 1
 ```
 
 Run the 224x224 PathMNIST+ settings on a 16 GB GPU:
 
 ```bash
-python -u run_experiment.py --dataset pathmnist224 --ipc 1 10 100 --seed 1 --idea 1 2 3 --stage all --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset pathmnist224 --ipc 1 10 100 --seed 1 --stage all --jobs 1 --eval-reports-per-job 1
 ```
 
 The 224x224 configuration preserves all four P&E views and the full loss. Activation microbatching changes memory use, not the mathematical objective. Use one job on a 16 GB GPU.
@@ -164,8 +161,8 @@ The 224x224 configuration preserves all four P&E views and the full loss. Activa
 Run condensation and evaluation separately:
 
 ```bash
-python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --stage condense --jobs 1
-python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --idea 1 2 3 --stage evaluate --evaluation-architectures convnet --repeats 5 --jobs 1 --eval-reports-per-job 1
+python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage condense --jobs 1
+python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage evaluate --evaluation-architectures convnet --repeats 5 --jobs 1 --eval-reports-per-job 1
 ```
 
 Re-running the same command resumes compatible checkpoints and skips compatible completed results.
@@ -184,7 +181,7 @@ Re-running the same command resumes compatible checkpoints and skips compatible 
 Generated files are written below `outputs/` and are excluded from version control. A typical full-method run contains:
 
 ```text
-outputs/idea_123/<dataset>/ipc_<IPC>/condense_seed_<seed>/
+outputs/cacdm/<dataset>/ipc_<IPC>/condense_seed_<seed>/
 |-- synthetic.pt
 |-- summary.json
 |-- online_evaluation.json
