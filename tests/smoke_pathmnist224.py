@@ -1,4 +1,4 @@
-"""CPU-only structural smoke test for the PathMNIST+ 224 protocol."""
+"""CPU-only structural smoke test for the 224x224 PathMNIST protocol."""
 
 from __future__ import annotations
 
@@ -94,7 +94,7 @@ def main() -> None:
     spread_gradient = torch.autograd.grad(spread_loss, images)[0]
     assert torch.isfinite(base_gradient).all()
     assert torch.isfinite(spread_gradient).all()
-    print("PathMNIST+ 224 smoke test passed")
+    print("PathMNIST 224 smoke test passed")
 
 
 if __name__ == "__main__":

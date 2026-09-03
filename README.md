@@ -1,53 +1,80 @@
-# CACDM
+# SAIL-DM
 
 [English](README.md) | [简体中文](README_zh-CN.md)
 
-CACDM is a compact, reproducible implementation of **Cluster-Aware Class-Distribution Matching** for medical-image dataset condensation. It extends the strict IDM training path with three cumulative components while retaining a small synthetic set, low storage overhead, and direct ConvNet/cross-architecture evaluation.
+This repository is the official implementation of **SAIL-DM: Support-Adaptive
+Intra-Class Local Distribution Matching for Transferable Medical Dataset
+Condensation**. SAIL-DM builds on the strict IDM optimization path and adapts
+the granularity of intra-class local distributions to the amount of training
+support available in each class, while preserving the prescribed
+images-per-class (IPC) storage budget exactly.
 
 This repository contains source code and configurations only. Datasets, synthetic images, checkpoints, logs, caches, and reported experiment outputs are intentionally excluded.
 
 ## Method overview
 
-CACDM combines three complementary components:
+SAIL-DM combines three complementary components:
 
-1. **Adaptive class-wise cluster initialization.** Images from each class are resized, flattened, reduced with PCA, and partitioned by class-wise K-means. The number of clusters is
+1. **Support-adaptive partition and mass-aware allocation.** Images from each
+   class are resized to `16x16`, flattened, projected onto at most 64 principal
+   components, and partitioned by class-conditional K-means. The number of
+   statistically supported local components is
 
    ```text
    K_c = min(IPC, K_max, max(1, floor(N_c / S + 0.5))),
    ```
 
-   where `N_c` is the number of real training images in class `c`, `S=100` images per cluster by default, and `K_max=10`. Synthetic canvases are allocated in proportion to cluster support. Center-to-edge initialization and partition-and-expansion (P&E) provide diverse starting points without changing the stored IPC.
+   where `N_c` is the number of real training images in class `c`, `S=100`
+   (the paper's `tau`) is the target support per component, and `K_max=10`.
+   A mass-aware lower-bounded residual allocation assigns every retained
+   component at least one canvas and always returns exactly the requested IPC.
 
-2. **Cluster-size-weighted feature-mean matching.** Class-conditional feature matching is decomposed over coarse clusters and weighted by their real sample counts. This prevents a small cluster and a dominant cluster from contributing as if they had equal support.
+2. **Center-to-edge stratified P&E initialization.** Samples in each local
+   component are ordered by their distance from its pixel-PCA center and split
+   into one radial stratum per allocated canvas. Four approximately equally
+   spaced samples initialize the canvas's `2x2` partition-and-expansion (P&E)
+   views, improving central-to-peripheral coverage without increasing storage.
 
-3. **Controlled within-cluster spread matching.** Radial feature quantiles and diagonal feature standard deviations preserve intra-class diversity. If the auxiliary spread gradient conflicts with the main IDM gradient, its conflicting component is projected away and its norm is capped at 15% of the main-gradient norm.
+3. **Local distribution and dispersion matching.** Local feature means are
+   weighted by empirical component mass. Radial feature quantiles and
+   coordinate-wise standard deviations preserve complementary aspects of
+   within-component geometry. A conflict-aware bounded gradient mixer removes
+   components that oppose the primary objective and limits the auxiliary
+   geometry gradient to 15% of the update budget.
 
-The public runner always executes the complete CACDM method. Adaptive cluster
-initialization, cluster-size-weighted mean matching, and controlled
-within-cluster spread matching are enabled together; no contribution switch is
-exposed on the command line.
+The public runner always executes the complete SAIL-DM method. The command line
+does not expose switches that disable individual contributions.
+
+## Results reported in the manuscript
+
+Under the strictly aligned local protocol, SAIL-DM improves mean accuracy over
+IDM in all 14 low-resolution ConvNet settings and in 15 of 16 IPC=10
+cross-architecture comparisons. At native `224x224` resolution and IPC=100,
+SAIL-DM obtains `90.12 +/- 0.58%` on PathMNIST. The manuscript treats published
+results obtained with different resolutions or protocols as contextual rather
+than controlled comparisons.
 
 ## Supported settings
 
-| Key | Dataset / resolution | Classes | Default IPC |
+| Key | Dataset / resolution | Classes | Manuscript IPC |
 |---|---|---:|---|
 | `pathmnist` | PathMNIST, 32x32 | 9 | 1, 5, 10, 100 |
 | `bloodmnist` | BloodMNIST, 32x32 | 8 | 1, 10, 50, 100 |
 | `dermamnist` | DermaMNIST, 32x32 | 7 | 1, 10, 50 |
 | `organamnist` | OrganAMNIST, 32x32 | 11 | 1, 10, 50 |
-| `pathmnist224` | PathMNIST+, 224x224 | 9 | 1, 10, 100 |
+| `pathmnist224` | PathMNIST, 224x224 | 9 | 100 |
 
 PathMNIST at 32x32 and 224x224 uses the same official samples at two resolutions; they are two evaluation settings rather than independent datasets. All MedMNIST datasets use their official train/validation/test splits.
 
 ## Repository layout
 
 ```text
-CACDM/
+SAIL-DM/
 |-- configs/                  Dataset and condensation protocols
 |-- Core/                     Configuration, data, runtime, I/O, checkpoints
 |-- Net/
 |   |-- Classification/       ConvNet and transfer architectures
-|   `-- Condensation/         IDM, clustering, and CACDM losses
+|   `-- Condensation/         IDM, clustering, and SAIL-DM losses
 |-- Pipeline/
 |   |-- Stages/condense.py    Condensation and online validation
 |   |-- data.py
@@ -84,7 +111,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-The public CACDM protocol is fixed to the `pixel_pca` clustering descriptor and
+The public SAIL-DM protocol is fixed to the `pixel_pca` partition descriptor and
 requires no pretrained network.
 
 ## Data preparation
@@ -101,7 +128,7 @@ Download selected datasets only:
 python download_datasets.py pathmnist bloodmnist dermamnist organamnist
 ```
 
-PathMNIST+ at 224x224 is approximately 12.6 GB and is intentionally not needed for the 32x32 experiments:
+The 224x224 PathMNIST archive is approximately 12.6 GB and is intentionally not needed for the 32x32 experiments:
 
 ```bash
 python download_datasets.py pathmnist224
@@ -130,7 +157,7 @@ Preview a run plan without starting an experiment:
 python run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage all --jobs 1 --dry-run
 ```
 
-## Running CACDM
+## Running SAIL-DM
 
 Run the complete method on one 32x32 setting:
 
@@ -150,7 +177,7 @@ Run multiple 32x32 datasets through the shared queue:
 python -u run_experiment.py --dataset pathmnist bloodmnist dermamnist organamnist --ipc 10 --seed 1 2 43 --stage all --jobs 1 --eval-reports-per-job 1
 ```
 
-Run the 224x224 PathMNIST+ settings on a 16 GB GPU:
+Run the native 224x224 PathMNIST setting on a 16 GB GPU:
 
 ```bash
 python -u run_experiment.py --dataset pathmnist224 --ipc 1 10 100 --seed 1 --stage all --jobs 1 --eval-reports-per-job 1
@@ -181,7 +208,7 @@ Re-running the same command resumes compatible checkpoints and skips compatible 
 Generated files are written below `outputs/` and are excluded from version control. A typical full-method run contains:
 
 ```text
-outputs/cacdm/<dataset>/ipc_<IPC>/condense_seed_<seed>/
+outputs/sail_dm/<dataset>/ipc_<IPC>/condense_seed_<seed>/
 |-- synthetic.pt
 |-- summary.json
 |-- online_evaluation.json
@@ -201,7 +228,7 @@ outputs/cacdm/<dataset>/ipc_<IPC>/condense_seed_<seed>/
 - Do not compare runs with different P&E factors as if they had the same effective training-set size; the stored IPC is always reported separately from expanded patches.
 - Default clustering is train-only pixel-PCA K-means. Validation and test images are never clustered.
 - Adaptive class-wise `K_c` uses half-up rounding and is clamped by class support, IPC, and `max_clusters_per_class`.
-- The 224x224 configuration uses a deeper ConvNet and smaller microbatches but retains the three CACDM components.
+- The 224x224 configuration uses a deeper ConvNet and smaller microbatches but retains the complete SAIL-DM objective.
 
 ## Extending to another medical dataset
 
@@ -226,8 +253,11 @@ Every dataset must define stable class names, image size/channels, normalization
 
 ## Citation
 
-The paper citation will be added when the manuscript metadata is public. Until then, cite this repository as **CACDM: Cluster-Aware Class-Distribution Matching for Medical Image Dataset Condensation** and include the commit hash used in your experiments.
+The publication metadata will be added after acceptance. Until then, cite this
+repository using the manuscript title **SAIL-DM: Support-Adaptive Intra-Class
+Local Distribution Matching for Transferable Medical Dataset Condensation**
+and include the commit hash used in your experiments.
 
 ## License
 
-CACDM is released under the [MIT License](LICENSE).
+SAIL-DM is released under the [MIT License](LICENSE).

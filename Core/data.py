@@ -702,7 +702,7 @@ def _build_medmnist_bundle(
     with np.load(path, allow_pickle=False) as payload:
         # Accessing an NPZ member already materializes an independent ndarray.
         # A second explicit copy briefly doubled peak RAM and made the 12.6 GB
-        # PathMNIST+ archive unsafe on 32 GB hosts.
+        # Avoid loading the full 224x224 PathMNIST archive on 32 GB hosts.
         arrays = {
             split: (
                 np.asarray(payload[f"{split}_images"]),

@@ -1,6 +1,6 @@
-"""Clustering and diversity-preservation components used by CACDM.
+"""Clustering and diversity-preservation components used by SAIL-DM.
 
-The public CACDM path uses resized raw pixels, PCA, and class-wise K-means.
+The public SAIL-DM path uses resized raw pixels, PCA, and class-wise K-means.
 Descriptor identity is embedded in cache metadata so incompatible cluster
 assignments can never be reused.
 """
@@ -862,7 +862,7 @@ def cluster_distribution_losses(
         spread_loss = radial_loss_sum
 
     # 对角标准差使用 E[x^2]-E[x]^2 和 index_add 一次聚合全部簇，
-    # 避免完整 CACDM 再对每簇切片完整特征矩阵。
+    # 避免完整 SAIL-DM 再对每簇切片完整特征矩阵。
     if float(standard_deviation_weight) > 0.0:
         real_square_sums = real.new_zeros(
             (int(cluster_count), real.shape[1])

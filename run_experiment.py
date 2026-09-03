@@ -1,4 +1,4 @@
-"""Unified runner for the complete CACDM method.
+"""Unified runner for the complete SAIL-DM method.
 
 The public entry point always enables adaptive pixel-PCA clustering with
 centre-to-edge P&E initialization, cluster-size-weighted feature-mean
@@ -659,7 +659,7 @@ def _preflight_device(allow_cpu: bool) -> None:
 def main(argv: list[str] | None = None) -> int:
     _CANCEL_EVENT.clear()
     parser = argparse.ArgumentParser(
-        description="CACDM 完整方法统一实验入口"
+        description="SAIL-DM 完整方法统一实验入口"
     )
     parser.add_argument(
         "--resume-all",
@@ -963,7 +963,7 @@ def main(argv: list[str] | None = None) -> int:
             datasets.append(key)
 
     print(
-        "CACDM 完整协议：自适应聚类初始化 + "
+        "SAIL-DM 完整协议：支持度自适应局部划分与预算分配 + "
         "簇规模加权均值匹配 + 受控簇内离散度匹配"
     )
     print(f"配置：{config_path}　入口：Pipeline.Stages.condense")
@@ -981,7 +981,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         else:
             overrides.setdefault("project", {})["output_root"] = str(
-                Path("outputs") / "cacdm"
+                Path("outputs") / "sail_dm"
             )
         if args.iterations is not None:
             overrides.setdefault("condensation", {}).setdefault(
@@ -1025,10 +1025,10 @@ def main(argv: list[str] | None = None) -> int:
                 "target_gradient_fraction": 0.15,
             }
         )
-        condensation_override["experiment_name"] = "cacdm"
+        condensation_override["experiment_name"] = "sail_dm"
 
         if args.smoke:
-            condensation_override["experiment_name"] = "cacdm_smoke"
+            condensation_override["experiment_name"] = "sail_dm_smoke"
 
         config = load_config(
             config_path, dataset=dataset, overrides=overrides
@@ -1091,7 +1091,7 @@ def main(argv: list[str] | None = None) -> int:
                 config["project"]["output_root"] = str(
                     Path("outputs")
                     / "smoke"
-                    / "cacdm"
+                    / "sail_dm"
                 )
             config["condensation"]["idm"].update(
                 {

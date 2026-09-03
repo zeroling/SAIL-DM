@@ -2090,7 +2090,7 @@ def run_condensation(
         checkpoint_design = dict(payload.get("design_signature", {}))
         if checkpoint_design != design_signature:
             raise ValueError(
-                "Checkpoint design does not match the current CACDM protocol: "
+                "Checkpoint design does not match the current SAIL-DM protocol: "
                 f"checkpoint={checkpoint_design}, current={design_signature}"
             )
         checkpoint_pixel_constraints = payload.get("pixel_constraints")

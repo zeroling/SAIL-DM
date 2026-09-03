@@ -5,7 +5,7 @@ project:
   seed: 2026
   deterministic: false
   device: auto
-  output_root: outputs/cacdm
+  output_root: outputs/sail_dm
   num_workers: 2
   windows_num_workers: 0
   prefetch_factor: 2

@@ -1,5 +1,5 @@
 condensation:
-  experiment_name: cacdm
+  experiment_name: sail_dm
 
   memory:
     max_reserved_fraction: 0.90
@@ -64,7 +64,7 @@ condensation:
       50: {clusters: 10}
       100: {clusters: 10}
     descriptor_size: [16, 16]
-    # The public CACDM runner locks the descriptor to pixel_pca.
+    # The public SAIL-DM runner locks the descriptor to pixel_pca.
     descriptor_mode: pixel_pca
     descriptor_batch_size: 128
     pca_components: 64

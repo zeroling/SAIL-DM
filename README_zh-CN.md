@@ -1,51 +1,70 @@
-# CACDM
+# SAIL-DM
 
 [English](README.md) | [简体中文](README_zh-CN.md)
 
-CACDM 是 **Cluster-Aware Class-Distribution Matching（聚簇感知类分布匹配）** 的紧凑可复现实现，用于医学图像数据集蒸馏。它在严格 IDM 训练路径上逐步加入三个创新组件，同时保留小型合成集、低存储占用以及 ConvNet/跨架构评测能力。
+本仓库是 **SAIL-DM: Support-Adaptive Intra-Class Local Distribution
+Matching for Transferable Medical Dataset Condensation（面向可迁移医学数据集
+凝练的支持度自适应类内局部分布匹配）** 的官方实现。SAIL-DM 建立在严格 IDM
+优化路径之上，根据每个类别拥有的训练样本支持度，自适应确定类内局部分布的表示
+粒度，同时严格保持规定的每类图像数（IPC）存储预算。
 
 本仓库只包含源代码和配置。数据集、合成图像、检查点、日志、缓存和已跑出的实验结果均被有意排除。
 
 ## 方法概述
 
-CACDM 由三个同时启用的互补创新点组成：
+SAIL-DM 由三个同时启用的互补组件组成：
 
-1. **类内自适应聚簇初始化。** 先对每个类的图像缩放、展平并用 PCA 降维，然后做类内 K-means。每类聚簇数为：
+1. **支持度自适应划分与质量感知预算分配。** 每类图像先缩放到 `16x16`、
+   展平并投影到至多 64 个主成分，再进行类条件 K-means。统计上可支持的局部
+   成分数为：
 
    ```text
    K_c = min(IPC, K_max, max(1, floor(N_c / S + 0.5))),
    ```
 
-   其中 `N_c` 是类 `c` 的真实训练图片数，默认每簇约 `S=100` 张，`K_max=10`。合成画布按簇支持度分配，再用中心到边缘初始化和 P&E（partition-and-expansion）增加初始多样性，但不改变存储 IPC。
+   其中 `N_c` 是类别 `c` 的真实训练图像数，`S=100`（论文中的 `tau`）是每个
+   局部成分的目标样本支持度，`K_max=10`。质量感知的带下界余量分配规则保证
+   每个保留成分至少获得一个画布，并且分配总数始终严格等于指定 IPC。
 
-2. **按簇规模加权的特征均值匹配。** 将类条件特征匹配分解到粗粒度簇，并按真实样本数加权，避免小簇与主导大簇被错误地等权处理。
+2. **中心到边缘的分层 P&E 初始化。** 每个局部成分中的样本按照其与 pixel-PCA
+   中心的距离排序，并按分配到的画布数切分为径向分层。每层抽取四个近似等距
+   样本初始化对应画布的 `2x2` P&E 视图，在不增加存储量的情况下覆盖从中心到
+   边缘的形态变化。
 
-3. **受控簇内离散度匹配。** 用径向特征分位数和逐维特征标准差保留类内多样性。当辅助离散度梯度与 IDM 主梯度冲突时，先投影去除冲突分量，再将其范数限制为主梯度范数的 15%。
+3. **局部分布与离散度匹配。** 局部特征均值按照成分的经验质量加权；径向特征
+   分位数与逐坐标标准差互补地保持成分内部几何结构。当辅助几何梯度与主目标
+   冲突时，先投影去除冲突分量，再将辅助梯度限制在更新预算的 15% 以内。
 
-公开入口始终运行完整 CACDM。自适应聚类初始化、按簇规模加权的均值匹配和
-受控簇内离散度匹配会同时启用，命令行不提供关闭单个创新点的开关。
+公开入口始终运行完整 SAIL-DM，命令行不提供关闭单个组件的开关。
+
+## 论文报告结果
+
+在严格对齐的本地协议下，SAIL-DM 在全部 14 个低分辨率 ConvNet 设置中均取得
+高于 IDM 的平均准确率，并在 IPC=10 的 16 个跨架构比较中胜出 15 个。在原生
+`224x224`、IPC=100 的 PathMNIST 设置上，SAIL-DM 达到 `90.12 +/- 0.58%`。
+论文将分辨率或评测协议不同的已发表结果仅作为背景比较，而不作为严格受控对照。
 
 ## 支持的设置
 
-| 数据集键 | 数据集/分辨率 | 类别数 | 默认 IPC |
+| 数据集键 | 数据集/分辨率 | 类别数 | 论文 IPC |
 |---|---|---:|---|
 | `pathmnist` | PathMNIST, 32x32 | 9 | 1, 5, 10, 100 |
 | `bloodmnist` | BloodMNIST, 32x32 | 8 | 1, 10, 50, 100 |
 | `dermamnist` | DermaMNIST, 32x32 | 7 | 1, 10, 50 |
 | `organamnist` | OrganAMNIST, 32x32 | 11 | 1, 10, 50 |
-| `pathmnist224` | PathMNIST+, 224x224 | 9 | 1, 10, 100 |
+| `pathmnist224` | PathMNIST, 224x224 | 9 | 100 |
 
 32x32 和 224x224 PathMNIST 使用同一批官方样本，应记为同一数据集的两个分辨率评测设置，不是两个独立数据集。所有 MedMNIST 数据均使用官方 train/validation/test 划分。
 
 ## 仓库结构
 
 ```text
-CACDM/
+SAIL-DM/
 |-- configs/                  数据集与蒸馏协议
 |-- Core/                     配置、数据、运行时、I/O、检查点
 |-- Net/
 |   |-- Classification/       ConvNet 及跨架构评测网络
-|   `-- Condensation/         IDM、聚簇和 CACDM 损失
+|   `-- Condensation/         IDM、局部划分和 SAIL-DM 损失
 |-- Pipeline/
 |   |-- Stages/condense.py    蒸馏与在线验证
 |   |-- data.py
@@ -82,7 +101,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-公开 CACDM 协议固定使用 `pixel_pca` 聚类表示，不需要预训练网络。
+公开 SAIL-DM 协议固定使用 `pixel_pca` 划分表示，不需要预训练网络。
 
 ## 数据准备
 
@@ -98,7 +117,7 @@ python download_datasets.py
 python download_datasets.py pathmnist bloodmnist dermamnist organamnist
 ```
 
-224x224 PathMNIST+ 约为 12.6 GB，运行 32x32 实验时不需要它：
+224x224 PathMNIST 数据包约为 12.6 GB，运行 32x32 实验时不需要它：
 
 ```bash
 python download_datasets.py pathmnist224
@@ -127,7 +146,7 @@ python tests/smoke_pathmnist224.py
 python run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage all --jobs 1 --dry-run
 ```
 
-## 运行 CACDM
+## 运行 SAIL-DM
 
 运行一个 32x32 完整方法实验：
 
@@ -147,7 +166,7 @@ python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 2 43 --stage 
 python -u run_experiment.py --dataset pathmnist bloodmnist dermamnist organamnist --ipc 10 --seed 1 2 43 --stage all --jobs 1 --eval-reports-per-job 1
 ```
 
-在 16 GB 显卡上运行 224x224 PathMNIST+：
+在 16 GB 显卡上运行原生 224x224 PathMNIST：
 
 ```bash
 python -u run_experiment.py --dataset pathmnist224 --ipc 1 10 100 --seed 1 --stage all --jobs 1 --eval-reports-per-job 1
@@ -178,7 +197,7 @@ python -u run_experiment.py --dataset bloodmnist --ipc 10 --seed 1 --stage evalu
 所有运行产物写入 `outputs/`，并被 Git 忽略。完整方法的典型目录为：
 
 ```text
-outputs/cacdm/<dataset>/ipc_<IPC>/condense_seed_<seed>/
+outputs/sail_dm/<dataset>/ipc_<IPC>/condense_seed_<seed>/
 |-- synthetic.pt
 |-- summary.json
 |-- online_evaluation.json
@@ -223,8 +242,11 @@ outputs/cacdm/<dataset>/ipc_<IPC>/condense_seed_<seed>/
 
 ## 引用
 
-论文元数据公开后会补充正式引用信息。在此之前，请将本仓库记为 **CACDM: Cluster-Aware Class-Distribution Matching for Medical Image Dataset Condensation**，并在复现记录中写明所使用的 commit hash。
+论文正式发表后会补充完整出版信息。在此之前，请按论文题目
+**SAIL-DM: Support-Adaptive Intra-Class Local Distribution Matching for
+Transferable Medical Dataset Condensation** 引用本仓库，并在复现记录中写明所使用的
+commit hash。
 
 ## 许可证
 
-CACDM 使用 [MIT License](LICENSE) 开源。
+SAIL-DM 使用 [MIT License](LICENSE) 开源。
